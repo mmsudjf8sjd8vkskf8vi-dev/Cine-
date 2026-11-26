@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cine con amigos</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; margin: 0; padding: 10px; }
+    video { width: 100%; max-width: 800px; background: #000; }
+    input, button { padding: 10px; margin: 5px; font-size: 16px; }
+    #chat { max-width: 800px; margin: 10px auto; text-align: left; }
+    #mensajes { height: 150px; overflow-y: auto; background: #222; padding: 8px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Cine con amigos</h1>
+
+  <div>
+    <input id="urlVideo" placeholder="Pega aquí el enlace del video (.mp4)">
+    <button onclick="cargarVideo()">Cargar video</button>
+  </div>
+
+  <video id="video" controls playsinline></video>
+
+  <div id="chat">
+    <div id="mensajes"></div>
+    <input id="texto" placeholder="Escribe un mensaje">
+    <button onclick="enviarMensaje()">Enviar</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const video = document.getElementById('video');
+    let ignorar = false;
+
+    function cargarVideo() {
+      const url = document.getElementById('urlVideo').value;
+      socket.emit('cargar', url);
+    }
+
+    socket.on('cargar', (url) => { video.src = url; });
+
+    video.addEventListener('play', () => { if (!ignorar) socket.emit('play', video.currentTime); });
+    video.addEventListener('pause', () => { if (!ignorar) socket.emit('pause', video.currentTime); });
+    video.addEventListener('seeked', () => { if (!ignorar) socket.emit('seek', video.currentTime); });
+
+    socket.on('play', (t) => { ignorar = true; video.currentTime = t; video.play(); setTimeout(() => ignorar = false, 500); });
+    socket.on('pause', (t) => { ignorar = true; video.currentTime = t; video.pause(); setTimeout(() => ignorar = false, 500); });
+    socket.on('seek', (t) => { ignorar = true; video.currentTime = t; setTimeout(() => ignorar = false, 500); });
+
+    function enviarMensaje() {
+      const input = document.getElementById('texto');
+      if (input.value.trim() === '') return;
+      socket.emit('mensaje', input.value);
+      input.value = '';
+    }
+
+    socket.on('mensaje', (m) => {
+      const div = document.getElementById('mensajes');
+      div.innerHTML += '<p>' + m.replace(/</g, '&lt;') + '</p>';
+      div.scrollTop = div.scrollHeight;
+    });
+  </script>
+</body>
+</html>
