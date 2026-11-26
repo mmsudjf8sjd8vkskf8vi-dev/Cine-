@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cine con amigos</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; margin: 0; padding: 10px; }
+    video { width: 100%; max-width: 800px; background: #000; }
+    #ytContenedor { width: 100%; max-width: 800px; margin: 0 auto; aspect-ratio: 16 / 9; background: #000; display: none; }
+    #ytContenedor iframe { width: 100%; height: 100%; }
+    input, button { padding: 10px; margin: 5px; font-size: 16px; }
+    #chat { max-width: 800px; margin: 10px auto; text-align: left; }
+    #mensajes { height: 150px; overflow-y: auto; background: #222; padding: 8px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Cine con amigos</h1>
+
+  <div>
+    <input id="urlVideo" placeholder="Pega aquí el enlace de YouTube o .mp4">
+    <button onclick="cargarVideo()">Cargar video</button>
+  </div>
+
+  <video id="video" controls playsinline></video>
+  <div id="ytContenedor"><div id="ytPlayer"></div></div>
+
+  <div id="chat">
+    <div id="mensajes"></div>
+    <input id="texto" placeholder="Escribe un mensaje">
+    <button onclick="enviarMensaje()">Enviar</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script>
+    const socket = io();
+    const video = document.getElementById('video');
+    const ytContenedor = document.getElementById('ytContenedor');
+    let ignorar = false;
+    let modo = 'mp4';
+    let ytPlayer = null;
+    let ytListo = false;
+    let ytPendiente = null;
+    let ultimoEstado = -1;
+    let ultimoTiempo = 0;
+
+    function sacarIdYouTube(url) {
+      const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([A-Za-z0-9_-]{11})/);
+      return m ? m[1] : null;
+    }
+
+    function cargarVideo() {
+      const url = document.getElementById('urlVideo').value.trim();
+      if (url === '') return;
+      socket.emit('cargar', url);
+    }
+
+    function onYouTubeIframeAPIReady() {
+      ytPlayer = new YT.Player('ytPlayer', {
+        width: '100%',
+        height: '100%',
+        playerVars: { playsinline: 1 },
+        events: {
+          onReady: () => {
+            ytListo = true;
+            if (ytPendiente) { ytPlayer.loadVideoById(ytPendiente); ytPendiente = null; }
+          },
+          onStateChange: alCambiarEstado
+        }
+      });
+      setInterval(revisarSalto, 1000);
+    }
+
+    function alCambiarEstado(e) {
+      if (ignorar || modo !== 'youtube') return;
+      const t = ytPlayer.getCurrentTime();
+      if (e.data === 1) socket.emit('play', t);
+      if (e.data === 2) socket.emit('pause', t);
+      ultimoEstado = e.data;
+      ultimoTiempo = t;
+    }
+
+    function revisarSalto() {
+      if (modo !== 'youtube' || !ytListo || ignorar) return;
+      const t = ytPlayer.getCurrentTime();
+      if (Math.abs(t - ultimoTiempo) > 2.5) socket.emit('seek', t);
+      ultimoTiempo = t;
+      if (ultimoEstado === 1) ultimoTiempo = t;
+    }
+
+    setInterval(() => { if (modo === 'youtube' && ytListo && ultimoEstado === 1 && !ignorar) ultimoTiempo = ytPlayer.getCurrentTime(); }, 500);
+
+    socket.on('cargar', (url) => {
+      const id = sacarIdYouTube(url);
+      if (id) {
+        modo = 'youtube';
+        video.pause();
+        video.style.display = 'none';
+        ytContenedor.style.display = 'block';
+        if (ytListo) ytPlayer.loadVideoById(id); else ytPendiente = id;
+      } else {
+        modo = 'mp4';
+        if (ytListo) ytPlayer.stopVideo();
+        ytContenedor.style.display = 'none';
+        video.style.display = 'block';
+        video.src = url;
+      }
+    });
+
+    video.addEventListener('play', () => { if (!ignorar && modo === 'mp4') socket.emit('play', video.currentTime); });
+    video.addEventListener('pause', () => { if (!ignorar && modo === 'mp4') socket.emit('pause', video.currentTime); });
+    video.addEventListener('seeked', () => { if (!ignorar && modo === 'mp4') socket.emit('seek', video.currentTime); });
+
+    function soltar() { setTimeout(() => { ignorar = false; if (modo === 'youtube' && ytListo) ultimoTiempo = ytPlayer.getCurrentTime(); }, 1200); }
+
+    socket.on('play', (t) => {
+      ignorar = true;
+      if (modo === 'youtube' && ytListo) { ytPlayer.seekTo(t, true); ytPlayer.playVideo(); }
+      else { video.currentTime = t; video.play(); }
+      soltar();
+    });
+
+    socket.on('pause', (t) => {
+      ignorar = true;
+      if (modo === 'youtube' && ytListo) { ytPlayer.seekTo(t, true); ytPlayer.pauseVideo(); }
+      else { video.currentTime = t; video.pause(); }
+      soltar();
+    });
+
+    socket.on('seek', (t) => {
+      ignorar = true;
+      if (modo === 'youtube' && ytListo) ytPlayer.seekTo(t, true);
+      else video.currentTime = t;
+      soltar();
+    });
+
+    function enviarMensaje() {
+      const input = document.getElementById('texto');
+      if (input.value.trim() === '') return;
+      socket.emit('mensaje', input.value);
+      input.value = '';
+    }
+
+    socket.on('mensaje', (m) => {
+      const div = document.getElementById('mensajes');
+      div.innerHTML += '<p>' + m.replace(/</g, '&lt;') + '</p>';
+      div.scrollTop = div.scrollHeight;
+    });
+  </script>
+</body>
+</html>
