@@ -9,64 +9,84 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-let estadoSala = {
-  url: '',
-  tiempo: 0,
-  pausado: true,
-  ultimaActualizacion: Date.now()
-};
+const salas = new Map();
 
-function calcularTiempoActual() {
-  if (!estadoSala.url || estadoSala.pausado) return estadoSala.tiempo;
-  const segundosTranscurridos = (Date.now() - estadoSala.ultimaActualizacion) / 1000;
-  return estadoSala.tiempo + segundosTranscurridos;
+function calcularTiempo(sala) {
+  if (!sala.url || sala.pausado) return sala.tiempo;
+  return sala.tiempo + (Date.now() - sala.ultimaActualizacion) / 1000;
 }
 
 io.on('connection', (socket) => {
-  if (estadoSala.url) {
+  let salaId = 'general';
+
+  socket.on('unirseA_sala', (id) => {
+    socket.leave(salaId);
+    salaId = id || 'general';
+    socket.join(salaId);
+
+    if (!salas.has(salaId)) {
+      salas.set(salaId, {
+        url: '',
+        tiempo: 0,
+        pausado: true,
+        ultimaActualizacion: Date.now()
+      });
+    }
+
+    const sala = salas.get(salaId);
     socket.emit('cargar', {
-      url: estadoSala.url,
-      tiempo: calcularTiempoActual(),
-      pausado: estadoSala.pausado
+      url: sala.url,
+      tiempo: calcularTiempo(sala),
+      pausado: sala.pausado
     });
-  }
+  });
 
   socket.on('cargar', (url) => {
-    estadoSala = {
-      url,
+    const sala = salas.get(salaId);
+    if (!sala) return;
+    sala.url = url;
+    sala.tiempo = 0;
+    sala.pausado = false;
+    sala.ultimaActualizacion = Date.now();
+    io.to(salaId).emit('cargar', {
+      url: sala.url,
       tiempo: 0,
-      pausado: false,
-      ultimaActualizacion: Date.now()
-    };
-    io.emit('cargar', estadoSala);
+      pausado: false
+    });
   });
 
   socket.on('play', (tiempo) => {
-    estadoSala.tiempo = tiempo;
-    estadoSala.pausado = false;
-    estadoSala.ultimaActualizacion = Date.now();
-    socket.broadcast.emit('play', tiempo);
+    const sala = salas.get(salaId);
+    if (!sala) return;
+    sala.tiempo = tiempo;
+    sala.pausado = false;
+    sala.ultimaActualizacion = Date.now();
+    socket.to(salaId).emit('play', tiempo);
   });
 
   socket.on('pause', (tiempo) => {
-    estadoSala.tiempo = tiempo;
-    estadoSala.pausado = true;
-    estadoSala.ultimaActualizacion = Date.now();
-    socket.broadcast.emit('pause', tiempo);
+    const sala = salas.get(salaId);
+    if (!sala) return;
+    sala.tiempo = tiempo;
+    sala.pausado = true;
+    sala.ultimaActualizacion = Date.now();
+    socket.to(salaId).emit('pause', tiempo);
   });
 
   socket.on('seek', (tiempo) => {
-    estadoSala.tiempo = tiempo;
-    estadoSala.ultimaActualizacion = Date.now();
-    socket.broadcast.emit('seek', tiempo);
+    const sala = salas.get(salaId);
+    if (!sala) return;
+    sala.tiempo = tiempo;
+    sala.ultimaActualizacion = Date.now();
+    socket.to(salaId).emit('seek', tiempo);
   });
 
   socket.on('mensaje', (data) => {
-    io.emit('mensaje', data);
+    io.to(salaId).emit('mensaje', data);
   });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  console.log(`Servidor corriendo en puerto ${PORT}`);
 });
