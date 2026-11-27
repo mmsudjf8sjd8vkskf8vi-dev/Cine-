@@ -22,7 +22,8 @@ function obtenerEstadoSala(sala) {
       tiempo: 0,
       pausado: true,
       actualizadoEn: Date.now(),
-      usuarios: {}
+      usuarios: {},
+      bloqueados: new Set()
     };
   }
   return salas[sala];
@@ -71,6 +72,12 @@ io.on('connection', (socket) => {
   socket.on('unirseA_sala', (datos) => {
     const nuevaSala = (typeof datos === 'string' ? datos : datos.sala) || 'general';
     const nombreUsuario = (typeof datos === 'object' && datos.nombre) ? datos.nombre : 'Invitado';
+    const estadoNuevo = obtenerEstadoSala(nuevaSala);
+
+    if (estadoNuevo.bloqueados.has(nombreUsuario)) {
+      socket.emit('expulsado');
+      return;
+    }
 
     if (salaActual && salas[salaActual] && salas[salaActual].usuarios[socket.id]) {
       delete salas[salaActual].usuarios[socket.id];
@@ -124,19 +131,28 @@ io.on('connection', (socket) => {
     if (!solicitante || (!solicitante.admin && !solicitante.vip)) return;
     if (objetivoId === socket.id) return;
 
+    const objetivo = estado.usuarios[objetivoId];
     const socketObjetivo = io.sockets.sockets.get(objetivoId);
-    if (socketObjetivo && estado.usuarios[objetivoId]) {
+    if (objetivo) {
+      estado.bloqueados.add(objetivo.nombre);
       delete estado.usuarios[objetivoId];
-      socketObjetivo.leave(salaActual);
-      socketObjetivo.emit('expulsado');
+      if (socketObjetivo) {
+        socketObjetivo.leave(salaActual);
+        socketObjetivo.emit('expulsado');
+      }
       emitirUsuarios(salaActual);
     }
   });
 
   socket.on('cambiar_nombre', (nuevoNombre) => {
     const estado = obtenerEstadoSala(salaActual);
+    const limpio = (nuevoNombre || 'Invitado').trim().slice(0, 20);
+    if (estado.bloqueados.has(limpio)) {
+      socket.emit('expulsado');
+      return;
+    }
     if (estado.usuarios[socket.id]) {
-      estado.usuarios[socket.id].nombre = nuevoNombre || 'Invitado';
+      estado.usuarios[socket.id].nombre = limpio || 'Invitado';
       emitirUsuarios(salaActual);
     }
   });
