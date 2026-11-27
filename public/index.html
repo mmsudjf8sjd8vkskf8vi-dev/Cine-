@@ -11,6 +11,7 @@
       --bg-card: #222b38;
       --accent: #f5b400;
       --green: #1e8e3e;
+      --danger: #d93025;
       --text: #f1f3f4;
       --text-muted: #9aa0a6;
     }
@@ -24,8 +25,6 @@
       height: 100dvh;
       overflow: hidden;
     }
-
-    /* Barra superior */
     .topbar {
       background: var(--bg-panel);
       padding: 10px 14px;
@@ -33,25 +32,39 @@
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid #2a3441;
+      gap: 8px;
     }
-    .logo { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 6px; }
+    .logo { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 6px; }
     .logo span { background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 900; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .vip-btn {
+      background: #2b230a;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      padding: 4px 9px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .vip-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
     .user-pill {
       background: var(--bg-card);
       padding: 5px 10px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 12px;
       display: flex;
       align-items: center;
       gap: 6px;
       cursor: pointer;
     }
-
-    /* Zona de Video */
     .player-wrapper {
       width: 100%;
       aspect-ratio: 16 / 9;
-      max-height: 42vh;
+      max-height: 40vh;
       background: #000;
       position: relative;
       display: flex;
@@ -63,16 +76,13 @@
       height: 100%;
       border: none;
     }
-    #video { display: none; }
-    #ytContenedor { display: none; }
+    #video, #ytContenedor { display: none; }
     .empty-player {
       color: var(--text-muted);
       font-size: 14px;
       text-align: center;
       padding: 20px;
     }
-
-    /* Barra de controles estilo W2G */
     .controls-bar {
       background: #0d1117;
       padding: 8px 12px;
@@ -103,8 +113,6 @@
       height: 4px;
       cursor: pointer;
     }
-
-    /* Cabecera de sala */
     .room-bar {
       background: var(--bg-panel);
       padding: 10px 14px;
@@ -121,7 +129,6 @@
       font-size: 15px;
       cursor: pointer;
     }
-    .room-actions { display: flex; gap: 12px; }
     .btn-invite {
       background: var(--accent);
       color: #000;
@@ -132,8 +139,6 @@
       font-size: 13px;
       cursor: pointer;
     }
-
-    /* Contenido principal por pestañas */
     .content-area {
       flex: 1;
       overflow-y: auto;
@@ -141,11 +146,9 @@
     }
     .tab-pane { display: none; height: 100%; }
     .tab-pane.active { display: flex; flex-direction: column; }
-
-    /* Grid de usuarios */
     .users-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
       gap: 12px;
     }
     .user-card {
@@ -157,12 +160,12 @@
       border: 1px solid #2f3b4c;
     }
     .user-avatar {
-      height: 95px;
+      height: 92px;
       background: linear-gradient(135deg, #2c3e50, #4ca1af);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 38px;
+      font-size: 36px;
       position: relative;
     }
     .crown-badge {
@@ -176,6 +179,17 @@
       border-radius: 4px;
       font-weight: bold;
     }
+    .vip-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #ffd54f;
+      color: #000;
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-weight: 800;
+    }
     .user-name-bar {
       background: var(--green);
       color: #fff;
@@ -187,33 +201,43 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-
-    /* Buscador / Cargar enlace */
+    .kick-btn {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      padding: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
     .search-box {
       display: flex;
       gap: 8px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
-    .search-box input {
+    .search-box input, .search-box textarea {
       flex: 1;
       background: var(--bg-card);
       border: 1px solid #344152;
       color: #fff;
-      padding: 12px;
+      padding: 10px;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
     }
     .search-box button {
       background: var(--accent);
       color: #000;
       border: none;
-      padding: 0 16px;
+      padding: 0 14px;
       border-radius: 8px;
       font-weight: 700;
       cursor: pointer;
     }
-
-    /* Chat */
+    .queue-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
     .chat-messages {
       flex: 1;
       overflow-y: auto;
@@ -230,8 +254,6 @@
       word-break: break-word;
     }
     .msg-bubble strong { color: var(--accent); }
-
-    /* Barra inferior de navegación */
     .bottom-nav {
       background: var(--bg-panel);
       border-top: 1px solid #2a3441;
@@ -257,7 +279,6 @@
       background: rgba(245, 180, 0, 0.1);
     }
     .nav-icon { font-size: 18px; }
-
     #avisoAutoplay {
       display: none;
       background: var(--accent);
@@ -272,66 +293,60 @@
 </head>
 <body>
 
-  <!-- Barra Superior -->
   <div class="topbar">
     <div class="logo"><span>C2G</span> Cine2Gether</div>
-    <div class="user-pill" onclick="cambiarNombre()">
-      👤 <span id="miNombreLabel">Invitado</span> ✎
+    <div class="top-actions">
+      <button class="vip-btn" id="btnVip" onclick="pedirVip()">★ VIP</button>
+      <div class="user-pill" onclick="cambiarNombre()">
+        👤 <span id="miNombreLabel">Invitado</span> ✎
+      </div>
     </div>
   </div>
 
-  <!-- Aviso de sonido -->
   <div id="avisoAutoplay" onclick="activarReproduccion()">
     🔊 Toca aquí para activar el sonido y sincronizar
   </div>
 
-  <!-- Reproductor -->
   <div class="player-wrapper">
     <div id="placeholderVideo" class="empty-player">
-      No hay video cargado.<br>Toca la lupa 🔍 abajo para pegar un enlace.
+      No hay video cargado.<br>Toca <b>Video</b> abajo para pegar enlaces o partes.
     </div>
     <video id="video" playsinline></video>
     <div id="ytContenedor"><div id="ytPlayer"></div></div>
   </div>
 
-  <!-- Controles estilo W2G -->
   <div class="controls-bar">
     <button class="btn-icon" id="btnPlayPause" onclick="togglePlay()">▶</button>
+    <button class="btn-icon" onclick="siguienteVideo()" title="Siguiente parte">⏭</button>
     <span class="time-display" id="tiempoTexto">00:00</span>
     <input type="range" class="seek-slider" id="barraProgreso" min="0" max="100" value="0" oninput="alMoverBarra(this.value)">
     <button class="btn-icon" onclick="activarReproduccion()">🔊</button>
   </div>
 
-  <!-- Info de Sala -->
   <div class="room-bar">
     <div class="room-selector" onclick="cambiarSala()">
       <span id="salaActualTexto">Sala General</span> ▾
     </div>
-    <div class="room-actions">
-      <button class="btn-invite" onclick="copiarEnlaceSala()">+ Invitar</button>
-    </div>
+    <button class="btn-invite" onclick="copiarEnlaceSala()">+ Invitar</button>
   </div>
 
-  <!-- Contenido dinámico -->
   <div class="content-area">
-    <!-- Pestaña 1: Usuarios -->
     <div id="tab-usuarios" class="tab-pane active">
       <div class="users-grid" id="gridUsuarios"></div>
     </div>
 
-    <!-- Pestaña 2: Cargar Video -->
     <div id="tab-buscar" class="tab-pane">
       <div class="search-box">
-        <input id="urlVideo" placeholder="Pega enlace de YouTube o .mp4...">
+        <input id="urlVideo" placeholder="Enlace de YouTube, playlist (?list=...), .mp4 o separados por coma...">
         <button onclick="cargarVideo()">Ver</button>
       </div>
-      <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5;">
-        • Pega cualquier enlace de <b>YouTube</b> (normal, Shorts o en vivo) o un enlace directo <b>.mp4</b>.<br>
-        • Todos en la misma sala verán el video sincronizado al mismo segundo.
-      </p>
+      <div class="search-box">
+        <textarea id="listaPartes" rows="3" placeholder="Pega aquí varias partes (una por línea) para reproducirlas en orden: Parte 1, Parte 2, Parte 3..."></textarea>
+        <button onclick="cargarListaPartes()">Cargar lista</button>
+      </div>
+      <p class="queue-info" id="estadoCola">Cola: 0 videos</p>
     </div>
 
-    <!-- Pestaña 3: Chat -->
     <div id="tab-chat" class="tab-pane">
       <div class="chat-messages" id="mensajes"></div>
       <div class="search-box" style="margin-bottom: 0;">
@@ -341,7 +356,6 @@
     </div>
   </div>
 
-  <!-- Barra inferior -->
   <div class="bottom-nav">
     <button class="nav-item active" onclick="cambiarTab('usuarios', this)">
       <span class="nav-icon">👥</span>
@@ -368,6 +382,8 @@
     const btnPlayPause = document.getElementById('btnPlayPause');
     const tiempoTexto = document.getElementById('tiempoTexto');
     const barraProgreso = document.getElementById('barraProgreso');
+    const btnVip = document.getElementById('btnVip');
+    const estadoCola = document.getElementById('estadoCola');
 
     let ignorarHasta = 0;
     let modo = 'ninguno';
@@ -376,6 +392,10 @@
     let ytPendiente = null;
     let ultimoTiempoYT = 0;
     let estaPausado = true;
+    let colaActual = [];
+    let indiceActual = 0;
+    let usuariosActuales = [];
+    let soyVip = false;
 
     let miNombre = localStorage.getItem('c2g_nombre') || 'Usuario_' + Math.floor(Math.random() * 900 + 100);
     const params = new URLSearchParams(window.location.search);
@@ -390,6 +410,31 @@
       document.getElementById('tab-' + nombre).classList.add('active');
       boton.classList.add('active');
     }
+
+    function pedirVip() {
+      const clave = prompt('Ingresa la clave VIP para activar modo VIP:');
+      if (clave) {
+        socket.emit('activar_vip', clave.trim());
+      }
+    }
+
+    socket.on('vip_estado', (res) => {
+      soyVip = !!res.activo;
+      btnVip.classList.toggle('active', soyVip);
+      btnVip.textContent = soyVip ? '★ VIP ACTIVO' : '★ VIP';
+      alert(soyVip ? 'Modo VIP activado.' : 'Clave VIP incorrecta.');
+    });
+
+    function expulsarUsuario(id) {
+      if (confirm('¿Sacar a este usuario de la sala?')) {
+        socket.emit('expulsar_usuario', id);
+      }
+    }
+
+    socket.on('expulsado', () => {
+      alert('Has sido retirado de la sala.');
+      window.location.reload();
+    });
 
     function cambiarNombre() {
       const nuevo = prompt('Escribe tu nombre:', miNombre);
@@ -417,7 +462,7 @@
       const url = new URL(window.location.origin);
       url.searchParams.set('sala', salaActual);
       navigator.clipboard.writeText(url.toString()).then(() => {
-        alert('¡Enlace de la sala copiado! Mándaselo a tu novia o amigos:\n' + url.toString());
+        alert('Enlace copiado:\n' + url.toString());
       }).catch(() => {
         prompt('Copia este enlace:', url.toString());
       });
@@ -439,11 +484,29 @@
     }
 
     function cargarVideo() {
-      const url = document.getElementById('urlVideo').value.trim();
-      if (!url) return;
-      socket.emit('cargar', url);
+      const raw = document.getElementById('urlVideo').value.trim();
+      if (!raw) return;
+      const partes = raw.split(',').map(s => s.trim()).filter(Boolean);
+      if (partes.length > 1) {
+        socket.emit('cargar', { cola: partes });
+      } else {
+        socket.emit('cargar', partes[0]);
+      }
       document.getElementById('urlVideo').value = '';
       cambiarTab('usuarios', document.querySelectorAll('.nav-item')[0]);
+    }
+
+    function cargarListaPartes() {
+      const textoLista = document.getElementById('listaPartes').value;
+      const partes = textoLista.split('\n').map(l => l.trim()).filter(Boolean);
+      if (!partes.length) return;
+      socket.emit('cargar', { cola: partes });
+      document.getElementById('listaPartes').value = '';
+      cambiarTab('usuarios', document.querySelectorAll('.nav-item')[0]);
+    }
+
+    function siguienteVideo() {
+      socket.emit('siguiente_video');
     }
 
     function togglePlay() {
@@ -518,6 +581,8 @@
         estaPausado = true;
         btnPlayPause.textContent = '▶';
         if (!estaIgnorando()) socket.emit('pause', ytPlayer.getCurrentTime());
+      } else if (e.data === YT.PlayerState.ENDED) {
+        socket.emit('siguiente_video');
       }
     }
 
@@ -538,6 +603,10 @@
     }, 800);
 
     socket.on('cargar', (data) => {
+      colaActual = Array.isArray(data.cola) ? data.cola : (data.url ? [data.url] : []);
+      indiceActual = data.indiceCola || 0;
+      estadoCola.textContent = `Cola: ${colaActual.length} video(s) | Parte ${colaActual.length ? indiceActual + 1 : 0}`;
+
       if (!data.url) return;
       placeholderVideo.style.display = 'none';
       const id = sacarIdYouTube(data.url);
@@ -563,6 +632,10 @@
           video.play().catch(() => { avisoAutoplay.style.display = 'block'; });
         }
       }
+    });
+
+    video.addEventListener('ended', () => {
+      if (modo === 'mp4') socket.emit('siguiente_video');
     });
 
     video.addEventListener('play', () => {
@@ -608,6 +681,10 @@
     });
 
     socket.on('usuarios', (lista) => {
+      usuariosActuales = lista;
+      const yo = lista.find(u => u.id === socket.id);
+      const puedoModerar = !!(yo && (yo.admin || yo.vip));
+
       const grid = document.getElementById('gridUsuarios');
       grid.innerHTML = '';
       lista.forEach(u => {
@@ -617,8 +694,10 @@
           <div class="user-avatar">
             👤
             ${u.admin ? '<span class="crown-badge">👑</span>' : ''}
+            ${u.vip ? '<span class="vip-badge">VIP</span>' : ''}
           </div>
           <div class="user-name-bar"></div>
+          ${(puedoModerar && u.id !== socket.id) ? `<button class="kick-btn" onclick="expulsarUsuario('${u.id}')">Sacar</button>` : ''}
         `;
         card.querySelector('.user-name-bar').textContent = u.nombre;
         grid.appendChild(card);
