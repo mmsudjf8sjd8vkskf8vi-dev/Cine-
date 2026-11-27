@@ -2,53 +2,359 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cine con amigos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cine2Gether</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; margin: 0; padding: 15px; }
-    .controles { max-width: 800px; margin: 0 auto 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-    input, button { padding: 10px; font-size: 15px; border-radius: 6px; border: none; }
-    input { background: #222; color: #fff; flex: 1; min-width: 140px; }
-    button { background: #e50914; color: #fff; cursor: pointer; font-weight: bold; }
-    button:hover { background: #f40612; }
-    #avisoAutoplay { display: none; background: #ff9800; color: #000; padding: 10px; max-width: 800px; margin: 10px auto; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    video { width: 100%; max-width: 800px; background: #000; border-radius: 6px; }
-    #ytContenedor { width: 100%; max-width: 800px; margin: 0 auto; aspect-ratio: 16 / 9; background: #000; display: none; border-radius: 6px; overflow: hidden; }
-    #ytContenedor iframe { width: 100%; height: 100%; }
-    #chat { max-width: 800px; margin: 15px auto; text-align: left; }
-    #mensajes { height: 180px; overflow-y: auto; background: #1c1c1c; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
-    #mensajes p { margin: 5px 0; word-break: break-word; }
-    .chat-inputs { display: flex; gap: 8px; }
+    :root {
+      --bg-dark: #11161d;
+      --bg-panel: #19202a;
+      --bg-card: #222b38;
+      --accent: #f5b400;
+      --green: #1e8e3e;
+      --text: #f1f3f4;
+      --text-muted: #9aa0a6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* Barra superior */
+    .topbar {
+      background: var(--bg-panel);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2a3441;
+    }
+    .logo { font-weight: 800; font-size: 17px; display: flex; align-items: center; gap: 6px; }
+    .logo span { background: var(--accent); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 900; }
+    .user-pill {
+      background: var(--bg-card);
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    /* Zona de Video */
+    .player-wrapper {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      max-height: 42vh;
+      background: #000;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    video, #ytContenedor, #ytContenedor iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    #video { display: none; }
+    #ytContenedor { display: none; }
+    .empty-player {
+      color: var(--text-muted);
+      font-size: 14px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* Barra de controles estilo W2G */
+    .controls-bar {
+      background: #0d1117;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #2a3441;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .time-display {
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+      min-width: 40px;
+    }
+    .seek-slider {
+      flex: 1;
+      accent-color: var(--accent);
+      height: 4px;
+      cursor: pointer;
+    }
+
+    /* Cabecera de sala */
+    .room-bar {
+      background: var(--bg-panel);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2a3441;
+    }
+    .room-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .room-actions { display: flex; gap: 12px; }
+    .btn-invite {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    /* Contenido principal por pestañas */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+    }
+    .tab-pane { display: none; height: 100%; }
+    .tab-pane.active { display: flex; flex-direction: column; }
+
+    /* Grid de usuarios */
+    .users-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+      gap: 12px;
+    }
+    .user-card {
+      background: var(--bg-card);
+      border-radius: 8px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid #2f3b4c;
+    }
+    .user-avatar {
+      height: 95px;
+      background: linear-gradient(135deg, #2c3e50, #4ca1af);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      position: relative;
+    }
+    .crown-badge {
+      position: absolute;
+      bottom: 6px;
+      left: 6px;
+      background: var(--accent);
+      color: #000;
+      font-size: 11px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .user-name-bar {
+      background: var(--green);
+      color: #fff;
+      text-align: center;
+      padding: 5px 6px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Buscador / Cargar enlace */
+    .search-box {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .search-box input {
+      flex: 1;
+      background: var(--bg-card);
+      border: 1px solid #344152;
+      color: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .search-box button {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 0 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Chat */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .msg-bubble {
+      background: var(--bg-card);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      word-break: break-word;
+    }
+    .msg-bubble strong { color: var(--accent); }
+
+    /* Barra inferior de navegación */
+    .bottom-nav {
+      background: var(--bg-panel);
+      border-top: 1px solid #2a3441;
+      display: flex;
+      justify-content: space-around;
+      padding: 6px 0;
+    }
+    .nav-item {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      padding: 4px 16px;
+      border-radius: 8px;
+    }
+    .nav-item.active {
+      color: var(--accent);
+      background: rgba(245, 180, 0, 0.1);
+    }
+    .nav-icon { font-size: 18px; }
+
+    #avisoAutoplay {
+      display: none;
+      background: var(--accent);
+      color: #000;
+      text-align: center;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>Cine con amigos</h1>
 
-  <div class="controles">
-    <input id="nombreUsuario" placeholder="Tu nombre" maxlength="20" style="max-width: 140px;">
-    <input id="nombreSala" placeholder="Nombre de la sala" maxlength="20" style="max-width: 140px;">
-    <button onclick="unirseSala()">Unirse a sala</button>
-  </div>
-
-  <div class="controles">
-    <input id="urlVideo" placeholder="Pega aquí el enlace de YouTube o .mp4">
-    <button onclick="cargarVideo()">Cargar video</button>
-  </div>
-
-  <div id="avisoAutoplay" onclick="activarReproduccion()">
-    ⚠️ Haz clic aquí para activar el sonido y sincronizar el video
-  </div>
-
-  <video id="video" controls playsinline></video>
-  <div id="ytContenedor"><div id="ytPlayer"></div></div>
-
-  <div id="chat">
-    <div id="mensajes"></div>
-    <div class="chat-inputs">
-      <input id="texto" placeholder="Escribe un mensaje y presiona Enter...">
-      <button onclick="enviarMensaje()">Enviar</button>
+  <!-- Barra Superior -->
+  <div class="topbar">
+    <div class="logo"><span>C2G</span> Cine2Gether</div>
+    <div class="user-pill" onclick="cambiarNombre()">
+      👤 <span id="miNombreLabel">Invitado</span> ✎
     </div>
+  </div>
+
+  <!-- Aviso de sonido -->
+  <div id="avisoAutoplay" onclick="activarReproduccion()">
+    🔊 Toca aquí para activar el sonido y sincronizar
+  </div>
+
+  <!-- Reproductor -->
+  <div class="player-wrapper">
+    <div id="placeholderVideo" class="empty-player">
+      No hay video cargado.<br>Toca la lupa 🔍 abajo para pegar un enlace.
+    </div>
+    <video id="video" playsinline></video>
+    <div id="ytContenedor"><div id="ytPlayer"></div></div>
+  </div>
+
+  <!-- Controles estilo W2G -->
+  <div class="controls-bar">
+    <button class="btn-icon" id="btnPlayPause" onclick="togglePlay()">▶</button>
+    <span class="time-display" id="tiempoTexto">00:00</span>
+    <input type="range" class="seek-slider" id="barraProgreso" min="0" max="100" value="0" oninput="alMoverBarra(this.value)">
+    <button class="btn-icon" onclick="activarReproduccion()">🔊</button>
+  </div>
+
+  <!-- Info de Sala -->
+  <div class="room-bar">
+    <div class="room-selector" onclick="cambiarSala()">
+      <span id="salaActualTexto">Sala General</span> ▾
+    </div>
+    <div class="room-actions">
+      <button class="btn-invite" onclick="copiarEnlaceSala()">+ Invitar</button>
+    </div>
+  </div>
+
+  <!-- Contenido dinámico -->
+  <div class="content-area">
+    <!-- Pestaña 1: Usuarios -->
+    <div id="tab-usuarios" class="tab-pane active">
+      <div class="users-grid" id="gridUsuarios"></div>
+    </div>
+
+    <!-- Pestaña 2: Cargar Video -->
+    <div id="tab-buscar" class="tab-pane">
+      <div class="search-box">
+        <input id="urlVideo" placeholder="Pega enlace de YouTube o .mp4...">
+        <button onclick="cargarVideo()">Ver</button>
+      </div>
+      <p style="color: var(--text-muted); font-size: 13px; line-height: 1.5;">
+        • Pega cualquier enlace de <b>YouTube</b> (normal, Shorts o en vivo) o un enlace directo <b>.mp4</b>.<br>
+        • Todos en la misma sala verán el video sincronizado al mismo segundo.
+      </p>
+    </div>
+
+    <!-- Pestaña 3: Chat -->
+    <div id="tab-chat" class="tab-pane">
+      <div class="chat-messages" id="mensajes"></div>
+      <div class="search-box" style="margin-bottom: 0;">
+        <input id="texto" placeholder="Escribe un mensaje...">
+        <button onclick="enviarMensaje()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra inferior -->
+  <div class="bottom-nav">
+    <button class="nav-item active" onclick="cambiarTab('usuarios', this)">
+      <span class="nav-icon">👥</span>
+      <span>Sala</span>
+    </button>
+    <button class="nav-item" onclick="cambiarTab('buscar', this)">
+      <span class="nav-icon">🔍</span>
+      <span>Video</span>
+    </button>
+    <button class="nav-item" onclick="cambiarTab('chat', this)">
+      <span class="nav-icon">💬</span>
+      <span>Chat</span>
+    </button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -57,51 +363,125 @@
     const socket = io();
     const video = document.getElementById('video');
     const ytContenedor = document.getElementById('ytContenedor');
+    const placeholderVideo = document.getElementById('placeholderVideo');
     const avisoAutoplay = document.getElementById('avisoAutoplay');
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const tiempoTexto = document.getElementById('tiempoTexto');
+    const barraProgreso = document.getElementById('barraProgreso');
 
     let ignorarHasta = 0;
-    let modo = 'mp4';
+    let modo = 'ninguno';
     let ytPlayer = null;
     let ytListo = false;
     let ytPendiente = null;
-    let ultimoEstadoYT = -1;
     let ultimoTiempoYT = 0;
+    let estaPausado = true;
 
-    function bloquearEventosLocales(ms = 800) {
-      ignorarHasta = Date.now() + ms;
+    let miNombre = localStorage.getItem('c2g_nombre') || 'Usuario_' + Math.floor(Math.random() * 900 + 100);
+    const params = new URLSearchParams(window.location.search);
+    let salaActual = params.get('sala') || 'Sala General';
+
+    document.getElementById('miNombreLabel').textContent = miNombre;
+    document.getElementById('salaActualTexto').textContent = salaActual;
+
+    function cambiarTab(nombre, boton) {
+      document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + nombre).classList.add('active');
+      boton.classList.add('active');
     }
 
-    function estaIgnorando() {
-      return Date.now() < ignorarHasta;
+    function cambiarNombre() {
+      const nuevo = prompt('Escribe tu nombre:', miNombre);
+      if (nuevo && nuevo.trim()) {
+        miNombre = nuevo.trim().slice(0, 20);
+        localStorage.setItem('c2g_nombre', miNombre);
+        document.getElementById('miNombreLabel').textContent = miNombre;
+        socket.emit('cambiar_nombre', miNombre);
+      }
     }
+
+    function cambiarSala() {
+      const nueva = prompt('Nombre de la sala:', salaActual);
+      if (nueva && nueva.trim()) {
+        salaActual = nueva.trim().slice(0, 25);
+        document.getElementById('salaActualTexto').textContent = salaActual;
+        const url = new URL(window.location);
+        url.searchParams.set('sala', salaActual);
+        window.history.replaceState({}, '', url);
+        socket.emit('unirseA_sala', { sala: salaActual, nombre: miNombre });
+      }
+    }
+
+    function copiarEnlaceSala() {
+      const url = new URL(window.location.origin);
+      url.searchParams.set('sala', salaActual);
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        alert('¡Enlace de la sala copiado! Mándaselo a tu novia o amigos:\n' + url.toString());
+      }).catch(() => {
+        prompt('Copia este enlace:', url.toString());
+      });
+    }
+
+    function formatearTiempo(seg) {
+      if (!seg || isNaN(seg)) return '00:00';
+      const m = Math.floor(seg / 60);
+      const s = Math.floor(seg % 60);
+      return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function bloquearEventosLocales(ms = 1000) { ignorarHasta = Date.now() + ms; }
+    function estaIgnorando() { return Date.now() < ignorarHasta; }
 
     function sacarIdYouTube(url) {
       const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/);
       return m ? m[1] : null;
     }
 
-    function unirseSala() {
-      const sala = document.getElementById('nombreSala').value.trim() || 'general';
-      socket.emit('unirseA_sala', sala);
-    }
-
     function cargarVideo() {
       const url = document.getElementById('urlVideo').value.trim();
       if (!url) return;
       socket.emit('cargar', url);
+      document.getElementById('urlVideo').value = '';
+      cambiarTab('usuarios', document.querySelectorAll('.nav-item')[0]);
+    }
+
+    function togglePlay() {
+      if (modo === 'youtube' && ytListo) {
+        if (estaPausado) ytPlayer.playVideo();
+        else ytPlayer.pauseVideo();
+      } else if (modo === 'mp4') {
+        if (video.paused) video.play();
+        else video.pause();
+      }
+    }
+
+    function alMoverBarra(val) {
+      bloquearEventosLocales(1200);
+      if (modo === 'youtube' && ytListo) {
+        const dur = ytPlayer.getDuration() || 0;
+        const nuevoT = (val / 100) * dur;
+        ytPlayer.seekTo(nuevoT, true);
+        socket.emit('seek', nuevoT);
+      } else if (modo === 'mp4') {
+        const dur = video.duration || 0;
+        const nuevoT = (val / 100) * dur;
+        video.currentTime = nuevoT;
+        socket.emit('seek', nuevoT);
+      }
     }
 
     function activarReproduccion() {
       avisoAutoplay.style.display = 'none';
-      if (modo === 'mp4') video.play().catch(() => {});
-      else if (ytListo) ytPlayer.playVideo();
+      if (modo === 'mp4') { video.muted = false; video.play().catch(() => {}); }
+      else if (ytListo) { ytPlayer.unMute(); ytPlayer.playVideo(); }
     }
 
     function onYouTubeIframeAPIReady() {
       ytPlayer = new YT.Player('ytPlayer', {
         width: '100%',
         height: '100%',
-        playerVars: { playsinline: 1, rel: 0 },
+        playerVars: { playsinline: 1, rel: 0, controls: 1 },
         events: {
           onReady: () => {
             ytListo = true;
@@ -113,49 +493,54 @@
           onStateChange: alCambiarEstadoYT
         }
       });
-      setInterval(revisarSaltoYT, 1000);
     }
 
     function aplicarEstadoYouTube(data) {
       bloquearEventosLocales(1500);
       ytPlayer.loadVideoById({ videoId: data.id, startSeconds: data.tiempo || 0 });
       if (data.pausado) {
+        estaPausado = true;
+        btnPlayPause.textContent = '▶';
         setTimeout(() => ytPlayer.pauseVideo(), 500);
+      } else {
+        estaPausado = false;
+        btnPlayPause.textContent = '⏸';
       }
     }
 
     function alCambiarEstadoYT(e) {
-      if (estaIgnorando() || modo !== 'youtube') return;
-      const t = ytPlayer.getCurrentTime();
+      if (modo !== 'youtube') return;
       if (e.data === YT.PlayerState.PLAYING) {
-        socket.emit('play', t);
+        estaPausado = false;
+        btnPlayPause.textContent = '⏸';
+        if (!estaIgnorando()) socket.emit('play', ytPlayer.getCurrentTime());
       } else if (e.data === YT.PlayerState.PAUSED) {
-        socket.emit('pause', t);
+        estaPausado = true;
+        btnPlayPause.textContent = '▶';
+        if (!estaIgnorando()) socket.emit('pause', ytPlayer.getCurrentTime());
       }
-      ultimoEstadoYT = e.data;
-      ultimoTiempoYT = t;
     }
 
-    function revisarSaltoYT() {
-      if (modo !== 'youtube' || !ytListo || estaIgnorando()) return;
-      const t = ytPlayer.getCurrentTime();
-      if (Math.abs(t - ultimoTiempoYT) > 2.5) {
-        socket.emit('seek', t);
+    setInterval(() => {
+      if (modo === 'youtube' && ytListo && ytPlayer.getCurrentTime) {
+        const t = ytPlayer.getCurrentTime();
+        const dur = ytPlayer.getDuration() || 1;
+        tiempoTexto.textContent = formatearTiempo(t);
+        barraProgreso.value = (t / dur) * 100;
+        if (!estaIgnorando() && Math.abs(t - ultimoTiempoYT) > 2.5) {
+          socket.emit('seek', t);
+        }
+        ultimoTiempoYT = t;
+      } else if (modo === 'mp4' && !isNaN(video.duration)) {
+        tiempoTexto.textContent = formatearTiempo(video.currentTime);
+        barraProgreso.value = (video.currentTime / video.duration) * 100;
       }
-      ultimoTiempoYT = t;
-    }
+    }, 800);
 
     socket.on('cargar', (data) => {
-      const url = data.url;
-      const tiempo = data.tiempo || 0;
-      const pausado = data.pausado || false;
-      if (!url) {
-        video.style.display = 'none';
-        ytContenedor.style.display = 'none';
-        return;
-      }
-
-      const id = sacarIdYouTube(url);
+      if (!data.url) return;
+      placeholderVideo.style.display = 'none';
+      const id = sacarIdYouTube(data.url);
       bloquearEventosLocales(1500);
 
       if (id) {
@@ -163,38 +548,38 @@
         video.pause();
         video.style.display = 'none';
         ytContenedor.style.display = 'block';
-        if (ytListo) {
-          aplicarEstadoYouTube({ id, tiempo, pausado });
-        } else {
-          ytPendiente = { id, tiempo, pausado };
-        }
+        if (ytListo) aplicarEstadoYouTube({ id, tiempo: data.tiempo, pausado: data.pausado });
+        else ytPendiente = { id, tiempo: data.tiempo, pausado: data.pausado };
       } else {
         modo = 'mp4';
         if (ytListo) ytPlayer.stopVideo();
         ytContenedor.style.display = 'none';
         video.style.display = 'block';
-        video.src = url;
-        video.currentTime = tiempo;
-        if (!pausado) {
+        video.src = data.url;
+        video.currentTime = data.tiempo || 0;
+        if (!data.pausado) {
+          estaPausado = false;
+          btnPlayPause.textContent = '⏸';
           video.play().catch(() => { avisoAutoplay.style.display = 'block'; });
         }
       }
     });
 
     video.addEventListener('play', () => {
+      estaPausado = false; btnPlayPause.textContent = '⏸';
       if (!estaIgnorando() && modo === 'mp4') socket.emit('play', video.currentTime);
     });
-
     video.addEventListener('pause', () => {
+      estaPausado = true; btnPlayPause.textContent = '▶';
       if (!estaIgnorando() && modo === 'mp4') socket.emit('pause', video.currentTime);
     });
-
     video.addEventListener('seeked', () => {
       if (!estaIgnorando() && modo === 'mp4') socket.emit('seek', video.currentTime);
     });
 
     socket.on('play', (t) => {
       bloquearEventosLocales(1200);
+      estaPausado = false; btnPlayPause.textContent = '⏸';
       if (modo === 'youtube' && ytListo) {
         if (Math.abs(ytPlayer.getCurrentTime() - t) > 1.5) ytPlayer.seekTo(t, true);
         ytPlayer.playVideo();
@@ -206,6 +591,7 @@
 
     socket.on('pause', (t) => {
       bloquearEventosLocales(1200);
+      estaPausado = true; btnPlayPause.textContent = '▶';
       if (modo === 'youtube' && ytListo) {
         ytPlayer.seekTo(t, true);
         ytPlayer.pauseVideo();
@@ -217,18 +603,32 @@
 
     socket.on('seek', (t) => {
       bloquearEventosLocales(1200);
-      if (modo === 'youtube' && ytListo) {
-        ytPlayer.seekTo(t, true);
-      } else {
-        video.currentTime = t;
-      }
+      if (modo === 'youtube' && ytListo) ytPlayer.seekTo(t, true);
+      else video.currentTime = t;
+    });
+
+    socket.on('usuarios', (lista) => {
+      const grid = document.getElementById('gridUsuarios');
+      grid.innerHTML = '';
+      lista.forEach(u => {
+        const card = document.createElement('div');
+        card.className = 'user-card';
+        card.innerHTML = `
+          <div class="user-avatar">
+            👤
+            ${u.admin ? '<span class="crown-badge">👑</span>' : ''}
+          </div>
+          <div class="user-name-bar"></div>
+        `;
+        card.querySelector('.user-name-bar').textContent = u.nombre;
+        grid.appendChild(card);
+      });
     });
 
     function enviarMensaje() {
       const input = document.getElementById('texto');
-      const nombre = document.getElementById('nombreUsuario').value.trim() || 'Anónimo';
       if (!input.value.trim()) return;
-      socket.emit('mensaje', { nombre, texto: input.value.trim() });
+      socket.emit('mensaje', { nombre: miNombre, texto: input.value.trim() });
       input.value = '';
     }
 
@@ -238,7 +638,8 @@
 
     socket.on('mensaje', (data) => {
       const div = document.getElementById('mensajes');
-      const p = document.createElement('p');
+      const p = document.createElement('div');
+      p.className = 'msg-bubble';
       const strong = document.createElement('strong');
       strong.textContent = data.nombre + ': ';
       p.appendChild(strong);
@@ -247,8 +648,7 @@
       div.scrollTop = div.scrollHeight;
     });
 
-    // Unirse a la sala por defecto al cargar la página
-    window.onload = () => unirseSala();
+    socket.emit('unirseA_sala', { sala: salaActual, nombre: miNombre });
   </script>
 </body>
 </html>
