@@ -6,27 +6,32 @@
   <title>Cine2Gether</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background: #0e1015; color: #f3f4f6; min-height: 100vh; padding: 14px; }
+    body { background: #0b0d12; color: #f3f4f6; min-height: 100vh; padding: 12px; }
     .app { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-    .card { background: #181b24; border: 1px solid #282d3d; border-radius: 12px; padding: 12px; }
+    .card { background: #151922; border: 1px solid #262c3a; border-radius: 12px; padding: 12px; }
     .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
     .brand { font-weight: 700; font-size: 1.1rem; color: #fbbf24; }
-    .badge { background: #262b3b; padding: 4px 10px; border-radius: 999px; font-size: 0.8rem; }
+    .badge { background: #232938; padding: 4px 10px; border-radius: 999px; font-size: 0.8rem; }
+    .badge.vip { background: #fbbf24; color: #111827; font-weight: 700; }
     .player-box { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 10px; overflow: hidden; }
     .player-box iframe,
     .player-box video { width: 100%; height: 100%; border: 0; display: block; }
     .placeholder { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: #9ca3af; font-size: 0.9rem; }
-    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    button { background: #fbbf24; color: #111827; border: 0; border-radius: 8px; padding: 9px 14px; font-weight: 600; cursor: pointer; }
-    button.secondary { background: #282d3d; color: #f3f4f6; }
-    input, textarea { width: 100%; background: #10131a; color: #f3f4f6; border: 1px solid #2d3346; border-radius: 8px; padding: 9px 11px; font-size: 0.92rem; }
     .row { display: flex; gap: 8px; margin-top: 8px; }
-    .row input { flex: 1; }
-    .status { font-size: 0.85rem; color: #93c5fd; margin-top: 8px; min-height: 18px; }
+    input { flex: 1; background: #0e1118; color: #f3f4f6; border: 1px solid #2c3344; border-radius: 8px; padding: 9px 11px; font-size: 0.92rem; }
+    button { background: #fbbf24; color: #111827; border: 0; border-radius: 8px; padding: 9px 12px; font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+    button.secondary { background: #242a3a; color: #f3f4f6; }
+    .status { font-size: 0.84rem; color: #93c5fd; margin-top: 8px; min-height: 18px; }
+    .results { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+    .result-item { display: flex; gap: 10px; align-items: center; background: #10131a; border: 1px solid #222836; border-radius: 10px; padding: 8px; }
+    .thumb { width: 96px; height: 54px; object-fit: cover; border-radius: 6px; background: #000; flex-shrink: 0; }
+    .result-info { flex: 1; min-width: 0; }
+    .result-title { font-size: 0.88rem; font-weight: 600; line-height: 1.25; margin-bottom: 6px; }
+    .result-actions { display: flex; gap: 6px; flex-wrap: wrap; }
     .queue-list { list-style: none; display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-    .queue-item { background: #12151d; padding: 8px 10px; border-radius: 8px; font-size: 0.86rem; display: flex; justify-content: space-between; gap: 8px; }
-    .chat-log { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
-    .msg { font-size: 0.85rem; background: #12151d; padding: 7px 10px; border-radius: 8px; }
+    .queue-item { background: #10131a; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; }
+    .chat-log { max-height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+    .msg { font-size: 0.85rem; background: #10131a; padding: 7px 10px; border-radius: 8px; }
     .msg strong { color: #fbbf24; }
   </style>
 </head>
@@ -39,28 +44,32 @@
     </div>
 
     <div class="card">
+      <div class="row" style="margin-top:0;">
+        <input id="vipInput" type="password" placeholder="Clave VIP (ej. VIP2026)..." />
+        <button id="btnVip">Activar VIP</button>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="player-box">
         <div id="ytPlayer"></div>
         <video id="directPlayer" controls playsinline style="display:none;"></video>
-        <div class="placeholder" id="placeholder">Pega un enlace de YouTube o video directo y pulsa Ver.</div>
+        <div class="placeholder" id="placeholder">Busca un video o pega un enlace de YouTube o playlist.</div>
       </div>
 
-      <div class="controls">
+      <div class="row">
+        <input id="searchInput" type="text" placeholder="Buscar o pegar enlace de YouTube / playlist..." />
+        <button id="btnSearch">Buscar</button>
+        <button id="btnImport" class="secondary">Cargar</button>
+      </div>
+
+      <div class="row">
         <button id="btnPlayPause" class="secondary">Play / Pausa</button>
         <button id="btnNext" class="secondary">Siguiente</button>
       </div>
 
-      <div class="row">
-        <input id="mediaInput" type="text" placeholder="Pega enlace de YouTube o playlist..." />
-        <button id="btnWatch">Ver</button>
-      </div>
-
-      <div class="row">
-        <textarea id="partsInput" rows="2" placeholder="O pega varios enlaces (uno por línea)..."></textarea>
-        <button id="btnLoadQueue" class="secondary">Cargar lista</button>
-      </div>
-
       <div class="status" id="statusText"></div>
+      <div class="results" id="resultsBox"></div>
     </div>
 
     <div class="card">
@@ -86,6 +95,7 @@
     const directPlayer = document.getElementById('directPlayer');
     const placeholder = document.getElementById('placeholder');
     const statusText = document.getElementById('statusText');
+    const resultsBox = document.getElementById('resultsBox');
     const queueList = document.getElementById('queueList');
     const queueCount = document.getElementById('queueCount');
     const chatLog = document.getElementById('chatLog');
@@ -95,7 +105,7 @@
     let ytPlayer = null;
     let ytReady = false;
     let pendingYt = null;
-    let currentVideoId = null;
+    let currentVideoKey = null;
     let isRemoteSync = false;
 
     const tag = document.createElement('script');
@@ -170,17 +180,17 @@
       directPlayer.onloadedmetadata = () => {
         directPlayer.currentTime = Math.max(0, startTime || 0);
         if (shouldPlay) {
-          directPlayer.play().catch(() => setStatus('Toca el video para iniciar la reproducción.'));
+          directPlayer.play().catch(() => setStatus('Toca el video para iniciar.'));
         }
         setTimeout(() => { isRemoteSync = false; }, 400);
       };
       directPlayer.onerror = () => {
-        setStatus('No se pudo cargar el video directo.');
+        setStatus('No se pudo reproducir el enlace directo.');
       };
     }
 
     function clearPlayer() {
-      currentVideoId = null;
+      currentVideoKey = null;
       directPlayer.pause();
       directPlayer.removeAttribute('src');
       directPlayer.style.display = 'none';
@@ -189,6 +199,57 @@
       }
       ytContainer.style.display = 'none';
       placeholder.style.display = 'flex';
+    }
+
+    function renderResults(results) {
+      resultsBox.innerHTML = '';
+      if (!results || !results.length) {
+        resultsBox.innerHTML = '<div class="status">Sin resultados.</div>';
+        return;
+      }
+
+      results.forEach((item) => {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.src = item.thumbnail || '';
+        img.alt = item.title || 'Video';
+
+        const info = document.createElement('div');
+        info.className = 'result-info';
+
+        const title = document.createElement('div');
+        title.className = 'result-title';
+        title.textContent = item.title || item.url;
+
+        const actions = document.createElement('div');
+        actions.className = 'result-actions';
+
+        const btnPlay = document.createElement('button');
+        btnPlay.textContent = 'Ver ahora';
+        btnPlay.onclick = () => {
+          socket.emit('add_media', { item, playNow: true });
+          setStatus(`Reproduciendo: ${item.title}`);
+        };
+
+        const btnAdd = document.createElement('button');
+        btnAdd.className = 'secondary';
+        btnAdd.textContent = '+ Añadir a cola';
+        btnAdd.onclick = () => {
+          socket.emit('add_media', { item, playNow: false });
+          setStatus(`Añadido a la cola: ${item.title}`);
+        };
+
+        actions.appendChild(btnPlay);
+        actions.appendChild(btnAdd);
+        info.appendChild(title);
+        info.appendChild(actions);
+        div.appendChild(img);
+        div.appendChild(info);
+        resultsBox.appendChild(div);
+      });
     }
 
     function renderRoomState(state) {
@@ -209,9 +270,9 @@
         return;
       }
 
-      const vidKey = `${v.type}:${v.id}:${v.url}`;
-      if (vidKey !== currentVideoId) {
-        currentVideoId = vidKey;
+      const key = `${v.type}:${v.id}:${v.url}`;
+      if (key !== currentVideoKey) {
+        currentVideoKey = key;
         setStatus(`Cargando: ${v.title || v.url}`);
         if (v.type === 'youtube') {
           loadYouTubeVideo(v.id, state.currentTime || 0, Boolean(state.isPlaying));
@@ -231,13 +292,26 @@
       setStatus('Conectado.');
     });
 
+    socket.on('vip_status', ({ isVip, message }) => {
+      if (isVip) {
+        userBadge.classList.add('vip');
+        userBadge.textContent = `${userBadge.textContent} ★ VIP`;
+      }
+      setStatus(message || '');
+    });
+
+    socket.on('search_results', ({ results }) => {
+      setStatus(`Resultados: ${(results || []).length}`);
+      renderResults(results);
+    });
+
     socket.on('room_state', (state) => {
       renderRoomState(state);
     });
 
     socket.on('player_sync', ({ action, time, isPlaying }) => {
       isRemoteSync = true;
-      if (currentVideoId && currentVideoId.startsWith('youtube:') && ytPlayer && ytPlayer.seekTo) {
+      if (currentVideoKey && currentVideoKey.startsWith('youtube:') && ytPlayer && ytPlayer.seekTo) {
         if (typeof time === 'number') ytPlayer.seekTo(time, true);
         if (action === 'play' || isPlaying) ytPlayer.playVideo();
         if (action === 'pause' || !isPlaying) ytPlayer.pauseVideo();
@@ -252,42 +326,42 @@
     socket.on('chat_message', (msg) => {
       const div = document.createElement('div');
       div.className = 'msg';
-      div.innerHTML = `<strong>${msg.sender}:</strong> ${msg.text}`;
+      div.innerHTML = `<strong>${msg.sender}${msg.isVip ? ' ★' : ''}:</strong> ${msg.text}`;
       chatLog.appendChild(div);
       chatLog.scrollTop = chatLog.scrollHeight;
     });
 
     socket.on('error_msg', (msg) => {
-      setStatus(msg || 'Error al cargar el video.');
+      setStatus(msg || 'Ocurrió un error.');
     });
 
-    document.getElementById('btnWatch').addEventListener('click', () => {
-      const val = document.getElementById('mediaInput').value.trim();
+    document.getElementById('btnVip').addEventListener('click', () => {
+      const key = document.getElementById('vipInput').value.trim();
+      socket.emit('activate_vip', { key });
+    });
+
+    document.getElementById('btnSearch').addEventListener('click', () => {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) {
+        setStatus('Escribe algo o pega un enlace.');
+        return;
+      }
+      setStatus('Buscando...');
+      socket.emit('search_media', { query: q });
+    });
+
+    document.getElementById('btnImport').addEventListener('click', () => {
+      const val = document.getElementById('searchInput').value.trim();
       if (!val) {
-        setStatus('Pega un enlace primero.');
+        setStatus('Pega un enlace de video o playlist.');
         return;
       }
-      setStatus('Enviando enlace...');
-      socket.emit('add_media', { input: val, clearQueue: false });
-    });
-
-    document.getElementById('btnLoadQueue').addEventListener('click', () => {
-      const lines = document.getElementById('partsInput').value
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean);
-      if (!lines.length) {
-        setStatus('Pega al menos un enlace en la lista.');
-        return;
-      }
-      lines.forEach((line, i) => {
-        socket.emit('add_media', { input: line, clearQueue: i === 0 });
-      });
-      setStatus(`Cargando ${lines.length} enlace(s)...`);
+      setStatus('Cargando enlace / playlist...');
+      socket.emit('add_media', { input: val, playNow: true });
     });
 
     document.getElementById('btnPlayPause').addEventListener('click', () => {
-      if (currentVideoId && currentVideoId.startsWith('youtube:') && ytPlayer && ytPlayer.getPlayerState) {
+      if (currentVideoKey && currentVideoKey.startsWith('youtube:') && ytPlayer && ytPlayer.getPlayerState) {
         const state = ytPlayer.getPlayerState();
         const t = ytPlayer.getCurrentTime();
         if (state === YT.PlayerState.PLAYING) {
