@@ -2,240 +2,287 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const ytSearch = require('yt-search');
+const YouTube = require('youtube-sr').default;
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+const VIP_KEY = 'VIP2026';
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-const salas = {};
-const CLAVE_VIP = 'VIP2026';
+const rooms = {};
 
-function obtenerEstadoSala(sala) {
-  if (!salas[sala]) {
-    salas[sala] = {
-      url: '',
-      cola: [],
-      indiceCola: 0,
-      tiempo: 0,
-      pausado: true,
-      actualizadoEn: Date.now(),
-      usuarios: {},
-      bloqueados: new Set()
-    };
+function createRoom(roomId) {
+  return {
+    id: roomId,
+    users: {},
+    banned: new Set(),
+    queue: [],
+    currentVideo: null,
+    isPlaying: false,
+    currentTime: 0,
+    lastUpdate: Date.now(),
+    messages: []
+  };
+}
+
+function getRoom(roomId = 'general') {
+  if (!rooms[roomId]) {
+    rooms[roomId] = createRoom(roomId);
   }
-  return salas[sala];
+  return rooms[roomId];
 }
 
-function emitirUsuarios(sala) {
-  const estado = obtenerEstadoSala(sala);
-  const lista = Object.values(estado.usuarios);
-  io.to(sala).emit('usuarios', lista);
+function getSyncedTime(room) {
+  if (!room.isPlaying) return room.currentTime;
+  const elapsed = (Date.now() - room.lastUpdate) / 1000;
+  return room.currentTime + elapsed;
 }
 
-function extraerIdPlaylist(texto) {
-  if (!texto || typeof texto !== 'string') return null;
-  const match = texto.match(/[?&]list=([A-Za-z0-9_-]+)/);
-  return match ? match[1] : null;
+function getRoomState(room) {
+  return {
+    roomId: room.id,
+    users: Object.values(room.users),
+    queue: room.queue,
+    currentVideo: room.currentVideo,
+    isPlaying: room.isPlaying,
+    currentTime: getSyncedTime(room),
+    messages: room.messages.slice(-50)
+  };
 }
 
-async function resolverCola(payload) {
-  if (Array.isArray(payload?.cola) && payload.cola.length > 0) {
-    return payload.cola.filter(Boolean);
+function extractPlaylistId(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.get('list');
+  } catch {
+    return null;
   }
+}
 
-  const entrada = typeof payload === 'string' ? payload.trim() : (payload?.url || '').trim();
-  if (!entrada) return [];
+function extractVideoId(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes('youtu.be')) {
+      return parsed.pathname.slice(1);
+    }
+    if (parsed.searchParams.get('v')) {
+      return parsed.searchParams.get('v');
+    }
+    const match = url.match(/(?:v=|\/embed\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
 
-  const listId = extraerIdPlaylist(entrada);
-  if (listId) {
-    try {
-      const resultado = await ytSearch({ listId });
-      if (resultado && Array.isArray(resultado.videos) && resultado.videos.length > 0) {
-        return resultado.videos
-          .map(v => v.videoId ? `https://www.youtube.com/watch?v=${v.videoId}` : null)
-          .filter(Boolean);
-      }
-    } catch (err) {
-      console.error('Error al cargar playlist:', err.message);
+async function parseMediaInput(input) {
+  const trimmed = (input || '').trim();
+  if (!trimmed) return [];
+
+  const playlistId = extractPlaylistId(trimmed);
+  if (playlistId) {
+    const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
+    const playlist = await YouTube.getPlaylist(playlistUrl);
+    if (playlist && Array.isArray(playlist.videos) && playlist.videos.length > 0) {
+      return playlist.videos
+        .filter((v) => v && v.id)
+        .map((v) => ({
+          id: v.id,
+          title: v.title || 'Video de YouTube',
+          url: `https://www.youtube.com/watch?v=${v.id}`,
+          type: 'youtube'
+        }));
     }
   }
 
-  return [entrada];
+  const videoId = extractVideoId(trimmed);
+  if (videoId) {
+    return [{
+      id: videoId,
+      title: 'Video de YouTube',
+      url: `https://www.youtube.com/watch?v=${videoId}`,
+      type: 'youtube'
+    }];
+  }
+
+  return [{
+    id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    title: trimmed.split('/').pop() || 'Video',
+    url: trimmed,
+    type: 'direct'
+  }];
+}
+
+function playNextInQueue(room) {
+  if (room.queue.length > 0) {
+    room.currentVideo = room.queue.shift();
+    room.currentTime = 0;
+    room.isPlaying = true;
+    room.lastUpdate = Date.now();
+  } else {
+    room.currentVideo = null;
+    room.currentTime = 0;
+    room.isPlaying = false;
+    room.lastUpdate = Date.now();
+  }
 }
 
 io.on('connection', (socket) => {
-  let salaActual = 'general';
+  let currentRoomId = 'general';
+  const defaultNum = Math.floor(100 + Math.random() * 900);
+  let userProfile = {
+    id: socket.id,
+    name: `Usuario_${defaultNum}`,
+    isVip: false
+  };
 
-  socket.on('unirseA_sala', (datos) => {
-    const nuevaSala = (typeof datos === 'string' ? datos : datos.sala) || 'general';
-    const nombreUsuario = (typeof datos === 'object' && datos.nombre) ? datos.nombre : 'Invitado';
-    const estadoNuevo = obtenerEstadoSala(nuevaSala);
+  socket.on('join_room', ({ roomId, userName } = {}) => {
+    const targetRoomId = (roomId || 'general').trim() || 'general';
+    const room = getRoom(targetRoomId);
 
-    if (estadoNuevo.bloqueados.has(nombreUsuario)) {
-      socket.emit('expulsado');
+    if (room.banned.has(socket.id)) {
+      socket.emit('banned', { message: 'Fuiste expulsado de esta sala.' });
       return;
     }
 
-    if (salaActual && salas[salaActual] && salas[salaActual].usuarios[socket.id]) {
-      delete salas[salaActual].usuarios[socket.id];
-      emitirUsuarios(salaActual);
+    if (currentRoomId && rooms[currentRoomId] && rooms[currentRoomId].users[socket.id]) {
+      socket.leave(currentRoomId);
+      delete rooms[currentRoomId].users[socket.id];
+      io.to(currentRoomId).emit('room_state', getRoomState(rooms[currentRoomId]));
     }
 
-    socket.leave(salaActual);
-    salaActual = nuevaSala;
-    socket.join(salaActual);
+    currentRoomId = targetRoomId;
+    socket.join(currentRoomId);
 
-    const estado = obtenerEstadoSala(salaActual);
-    const esAdmin = Object.keys(estado.usuarios).length === 0;
-
-    estado.usuarios[socket.id] = {
-      id: socket.id,
-      nombre: nombreUsuario,
-      admin: esAdmin,
-      vip: esAdmin
-    };
-
-    let tiempoActual = estado.tiempo;
-    if (!estado.pausado && estado.url) {
-      tiempoActual += (Date.now() - estado.actualizadoEn) / 1000;
+    if (userName && userName.trim()) {
+      userProfile.name = userName.trim().slice(0, 24);
     }
 
-    socket.emit('cargar', {
-      url: estado.url,
-      cola: estado.cola,
-      indiceCola: estado.indiceCola,
-      tiempo: tiempoActual,
-      pausado: estado.pausado
-    });
-
-    emitirUsuarios(salaActual);
+    room.users[socket.id] = { ...userProfile };
+    socket.emit('joined_success', { user: room.users[socket.id], roomId: currentRoomId });
+    io.to(currentRoomId).emit('room_state', getRoomState(room));
   });
 
-  socket.on('activar_vip', (clave) => {
-    const estado = obtenerEstadoSala(salaActual);
-    if (estado.usuarios[socket.id] && clave === CLAVE_VIP) {
-      estado.usuarios[socket.id].vip = true;
-      emitirUsuarios(salaActual);
-      socket.emit('vip_estado', { activo: true });
-    } else {
-      socket.emit('vip_estado', { activo: false });
-    }
-  });
-
-  socket.on('expulsar_usuario', (objetivoId) => {
-    const estado = obtenerEstadoSala(salaActual);
-    const solicitante = estado.usuarios[socket.id];
-    if (!solicitante || (!solicitante.admin && !solicitante.vip)) return;
-    if (objetivoId === socket.id) return;
-
-    const objetivo = estado.usuarios[objetivoId];
-    const socketObjetivo = io.sockets.sockets.get(objetivoId);
-    if (objetivo) {
-      estado.bloqueados.add(objetivo.nombre);
-      delete estado.usuarios[objetivoId];
-      if (socketObjetivo) {
-        socketObjetivo.leave(salaActual);
-        socketObjetivo.emit('expulsado');
+  socket.on('activate_vip', ({ key } = {}) => {
+    const room = getRoom(currentRoomId);
+    if (key === VIP_KEY) {
+      userProfile.isVip = true;
+      if (room.users[socket.id]) {
+        room.users[socket.id].isVip = true;
       }
-      emitirUsuarios(salaActual);
+      socket.emit('vip_status', { isVip: true, message: 'Modo VIP activado.' });
+      io.to(currentRoomId).emit('room_state', getRoomState(room));
+    } else {
+      socket.emit('vip_status', { isVip: false, message: 'Clave VIP incorrecta.' });
     }
   });
 
-  socket.on('cambiar_nombre', (nuevoNombre) => {
-    const estado = obtenerEstadoSala(salaActual);
-    const limpio = (nuevoNombre || 'Invitado').trim().slice(0, 20);
-    if (estado.bloqueados.has(limpio)) {
-      socket.emit('expulsado');
+  socket.on('kick_user', ({ targetId } = {}) => {
+    const room = getRoom(currentRoomId);
+    const requester = room.users[socket.id];
+    if (!requester || !requester.isVip) {
+      socket.emit('error_msg', 'Solo los usuarios VIP pueden expulsar.');
       return;
     }
-    if (estado.usuarios[socket.id]) {
-      estado.usuarios[socket.id].nombre = limpio || 'Invitado';
-      emitirUsuarios(salaActual);
+    if (!targetId || targetId === socket.id || !room.users[targetId]) return;
+
+    room.banned.add(targetId);
+    delete room.users[targetId];
+    io.to(targetId).emit('kicked', { message: 'Has sido expulsado de la sala.' });
+    const targetSocket = io.sockets.sockets.get(targetId);
+    if (targetSocket) {
+      targetSocket.leave(currentRoomId);
+    }
+    io.to(currentRoomId).emit('room_state', getRoomState(room));
+  });
+
+  socket.on('add_media', async ({ input, clearQueue } = {}) => {
+    const room = getRoom(currentRoomId);
+    try {
+      const items = await parseMediaInput(input);
+      if (!items.length) {
+        socket.emit('error_msg', 'No se pudo leer el enlace.');
+        return;
+      }
+      if (clearQueue) {
+        room.queue = [];
+      }
+      room.queue.push(...items);
+
+      if (!room.currentVideo) {
+        playNextInQueue(room);
+      }
+
+      io.to(currentRoomId).emit('room_state', getRoomState(room));
+    } catch (err) {
+      console.error('Error al cargar media:', err);
+      socket.emit('error_msg', 'Error al procesar el enlace o la playlist.');
     }
   });
 
-  socket.on('cargar', async (payload) => {
-    const estado = obtenerEstadoSala(salaActual);
-    const colaResuelta = await resolverCola(payload);
+  socket.on('next_video', () => {
+    const room = getRoom(currentRoomId);
+    playNextInQueue(room);
+    io.to(currentRoomId).emit('room_state', getRoomState(room));
+  });
 
-    if (!colaResuelta.length) return;
+  socket.on('player_sync', ({ action, time } = {}) => {
+    const room = getRoom(currentRoomId);
+    if (typeof time === 'number' && !Number.isNaN(time)) {
+      room.currentTime = Math.max(0, time);
+    } else {
+      room.currentTime = getSyncedTime(room);
+    }
+    room.lastUpdate = Date.now();
 
-    estado.cola = colaResuelta;
-    estado.indiceCola = 0;
-    estado.url = colaResuelta[0];
-    estado.tiempo = 0;
-    estado.pausado = false;
-    estado.actualizadoEn = Date.now();
+    if (action === 'play') {
+      room.isPlaying = true;
+    } else if (action === 'pause') {
+      room.isPlaying = false;
+    } else if (action === 'seek') {
+      room.lastUpdate = Date.now();
+    }
 
-    io.to(salaActual).emit('cargar', {
-      url: estado.url,
-      cola: estado.cola,
-      indiceCola: estado.indiceCola,
-      tiempo: 0,
-      pausado: false
+    socket.to(currentRoomId).emit('player_sync', {
+      action,
+      time: room.currentTime,
+      isPlaying: room.isPlaying,
+      timestamp: room.lastUpdate
     });
   });
 
-  socket.on('siguiente_video', () => {
-    const estado = obtenerEstadoSala(salaActual);
-    if (estado.cola.length > estado.indiceCola + 1) {
-      estado.indiceCola += 1;
-      estado.url = estado.cola[estado.indiceCola];
-      estado.tiempo = 0;
-      estado.pausado = false;
-      estado.actualizadoEn = Date.now();
-      io.to(salaActual).emit('cargar', {
-        url: estado.url,
-        cola: estado.cola,
-        indiceCola: estado.indiceCola,
-        tiempo: 0,
-        pausado: false
-      });
+  socket.on('chat_message', ({ text } = {}) => {
+    const room = getRoom(currentRoomId);
+    const cleanText = (text || '').trim().slice(0, 300);
+    if (!cleanText) return;
+
+    const sender = room.users[socket.id] || userProfile;
+    const msg = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      sender: sender.name,
+      isVip: Boolean(sender.isVip),
+      text: cleanText,
+      time: new Date().toISOString()
+    };
+    room.messages.push(msg);
+    if (room.messages.length > 100) {
+      room.messages.shift();
     }
-  });
-
-  socket.on('play', (t) => {
-    const estado = obtenerEstadoSala(salaActual);
-    estado.tiempo = t;
-    estado.pausado = false;
-    estado.actualizadoEn = Date.now();
-    socket.to(salaActual).emit('play', t);
-  });
-
-  socket.on('pause', (t) => {
-    const estado = obtenerEstadoSala(salaActual);
-    estado.tiempo = t;
-    estado.pausado = true;
-    estado.actualizadoEn = Date.now();
-    socket.to(salaActual).emit('pause', t);
-  });
-
-  socket.on('seek', (t) => {
-    const estado = obtenerEstadoSala(salaActual);
-    estado.tiempo = t;
-    estado.actualizadoEn = Date.now();
-    socket.to(salaActual).emit('seek', t);
-  });
-
-  socket.on('mensaje', (data) => {
-    io.to(salaActual).emit('mensaje', data);
+    io.to(currentRoomId).emit('chat_message', msg);
   });
 
   socket.on('disconnect', () => {
-    if (salaActual && salas[salaActual] && salas[salaActual].usuarios[socket.id]) {
-      const eraAdmin = salas[salaActual].usuarios[socket.id].admin;
-      delete salas[salaActual].usuarios[socket.id];
-      const restantes = Object.keys(salas[salaActual].usuarios);
-      if (eraAdmin && restantes.length > 0) {
-        salas[salaActual].usuarios[restantes[0]].admin = true;
-      }
-      emitirUsuarios(salaActual);
+    if (currentRoomId && rooms[currentRoomId] && rooms[currentRoomId].users[socket.id]) {
+      delete rooms[currentRoomId].users[socket.id];
+      io.to(currentRoomId).emit('room_state', getRoomState(rooms[currentRoomId]));
     }
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Servidor listo en puerto ' + PORT));
+server.listen(PORT, () => {
+  console.log(`Servidor Cine2Gether activo en puerto ${PORT}`);
+});
