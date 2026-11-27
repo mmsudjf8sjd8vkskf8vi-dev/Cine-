@@ -1,10 +1,14 @@
 {
   "name": "cine2gether",
   "version": "1.0.0",
+  "description": "App para ver videos sincronizados",
   "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5",
-    "youtube-sr": "*"
+    "youtube-sr": "^4.3.11"
   }
 }
