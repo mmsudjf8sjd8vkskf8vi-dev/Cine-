@@ -56,10 +56,14 @@ function getRoomState(room) {
 function extractPlaylistId(url) {
   try {
     const parsed = new URL(url);
-    return parsed.searchParams.get('list');
-  } catch {
-    return null;
+    if (parsed.searchParams.has('list')) {
+      return parsed.searchParams.get('list');
+    }
+  } catch {}
+  if (url.includes('list=')) {
+    return url.split('list=')[1].split('&')[0];
   }
+  return null;
 }
 
 function extractVideoId(url) {
@@ -68,14 +72,12 @@ function extractVideoId(url) {
     if (parsed.hostname.includes('youtu.be')) {
       return parsed.pathname.slice(1);
     }
-    if (parsed.searchParams.get('v')) {
+    if (parsed.searchParams.has('v')) {
       return parsed.searchParams.get('v');
     }
-    const match = url.match(/(?:v=|\/embed\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
-    return match ? match[1] : null;
-  } catch {
-    return null;
-  }
+  } catch {}
+  const match = url.match(/(?:v=|\/embed\/|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  return match ? match[1] : null;
 }
 
 async function parseMediaInput(input) {
@@ -84,17 +86,21 @@ async function parseMediaInput(input) {
 
   const playlistId = extractPlaylistId(trimmed);
   if (playlistId) {
-    const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
-    const playlist = await YouTube.getPlaylist(playlistUrl);
-    if (playlist && Array.isArray(playlist.videos) && playlist.videos.length > 0) {
-      return playlist.videos
-        .filter((v) => v && v.id)
-        .map((v) => ({
-          id: v.id,
-          title: v.title || 'Video de YouTube',
-          url: `https://www.youtube.com/watch?v=${v.id}`,
-          type: 'youtube'
-        }));
+    try {
+      const playlistUrl = `https://www.youtube.com/playlist?list=${playlistId}`;
+      const playlist = await YouTube.getPlaylist(playlistUrl, { fetchAll: true });
+      if (playlist && Array.isArray(playlist.videos) && playlist.videos.length > 0) {
+        return playlist.videos
+          .filter((v) => v && v.id)
+          .map((v) => ({
+            id: v.id,
+            title: v.title || 'Video de YouTube',
+            url: `https://www.youtube.com/watch?v=${v.id}`,
+            type: 'youtube'
+          }));
+      }
+    } catch (err) {
+      console.error('Error al obtener playlist completa:', err);
     }
   }
 
@@ -286,3 +292,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Servidor Cine2Gether activo en puerto ${PORT}`);
 });
+
