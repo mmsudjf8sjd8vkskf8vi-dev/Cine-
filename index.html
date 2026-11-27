@@ -3,252 +3,100 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cine con amigos</title>
+  <title>Cine2Gether</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #111; color: #fff; text-align: center; margin: 0; padding: 15px; }
-    .controles { max-width: 800px; margin: 0 auto 10px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-    input, button { padding: 10px; font-size: 15px; border-radius: 6px; border: none; }
-    input { background: #222; color: #fff; flex: 1; min-width: 140px; }
-    button { background: #e50914; color: #fff; cursor: pointer; font-weight: bold; }
-    button:hover { background: #f40612; }
-    #avisoAutoplay { display: none; background: #ff9800; color: #000; padding: 10px; max-width: 800px; margin: 10px auto; border-radius: 6px; font-weight: bold; cursor: pointer; }
-    video { width: 100%; max-width: 800px; background: #000; border-radius: 6px; }
-    #ytContenedor { width: 100%; max-width: 800px; margin: 0 auto; aspect-ratio: 16 / 9; background: #000; display: none; border-radius: 6px; overflow: hidden; }
-    #ytContenedor iframe { width: 100%; height: 100%; }
-    #chat { max-width: 800px; margin: 15px auto; text-align: left; }
-    #mensajes { height: 180px; overflow-y: auto; background: #1c1c1c; padding: 10px; border-radius: 6px; margin-bottom: 8px; }
-    #mensajes p { margin: 5px 0; word-break: break-word; }
-    .chat-inputs { display: flex; gap: 8px; }
+    body { font-family: sans-serif; background: #121212; color: #fff; margin: 0; padding: 20px; text-align: center; }
+    #video-container { max-width: 800px; margin: 0 auto; background: #000; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+    .controls { max-width: 800px; margin: 20px auto; display: flex; gap: 10px; }
+    input { flex-grow: 1; padding: 10px; border-radius: 4px; border: 1px solid #333; background: #222; color: #fff; }
+    button { padding: 10px 20px; border-radius: 4px; border: none; background: #e50914; color: #fff; cursor: pointer; font-weight: bold; }
+    button:hover { background: #b80710; }
+    #chat { max-width: 800px; margin: 20px auto; text-align: left; background: #1e1e1e; padding: 10px; height: 150px; overflow-y: scroll; border-radius: 4px; }
+    .msg { margin-bottom: 5px; }
+    .msg.vip { color: gold; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>Cine con amigos</h1>
 
-  <div class="controles">
-    <input id="nombreUsuario" placeholder="Tu nombre" maxlength="20" style="max-width: 140px;">
-    <input id="nombreSala" placeholder="Nombre de la sala" maxlength="20" style="max-width: 140px;">
-    <button onclick="unirseSala()">Unirse a sala</button>
+  <h1>Cine2Gether</h1>
+
+  <div>
+    <input type="text" id="userNameInput" placeholder="Tu nombre" maxlength="24">
+    <button onclick="joinRoom()">Entrar a la Sala</button>
   </div>
 
-  <div class="controles">
-    <input id="urlVideo" placeholder="Pega aquí el enlace de YouTube o .mp4">
-    <button onclick="cargarVideo()">Cargar video</button>
+  <div id="video-container">
+    <div id="player">Esperando video...</div>
   </div>
 
-  <div id="avisoAutoplay" onclick="activarReproduccion()">
-    ⚠️ Haz clic aquí para activar el sonido y sincronizar el video
+  <div class="controls">
+    <input type="text" id="mediaInput" placeholder="Enlace de YouTube, playlist o video...">
+    <button onclick="sendMedia(false)">Ver</button>
+    <button onclick="sendMedia(true)">Cargar lista</button>
   </div>
 
-  <video id="video" controls playsinline></video>
-  <div id="ytContenedor"><div id="ytPlayer"></div></div>
-
-  <div id="chat">
-    <div id="mensajes"></div>
-    <div class="chat-inputs">
-      <input id="texto" placeholder="Escribe un mensaje y presiona Enter...">
-      <button onclick="enviarMensaje()">Enviar</button>
-    </div>
+  <div class="controls">
+    <input type="text" id="chatInput" placeholder="Escribe un mensaje...">
+    <button onclick="sendChat()">Enviar</button>
   </div>
+
+  <div id="chat"></div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="https://www.youtube.com/iframe_api"></script>
   <script>
     const socket = io();
-    const video = document.getElementById('video');
-    const ytContenedor = document.getElementById('ytContenedor');
-    const avisoAutoplay = document.getElementById('avisoAutoplay');
+    let player = null;
 
-    let ignorarHasta = 0;
-    let modo = 'mp4';
-    let ytPlayer = null;
-    let ytListo = false;
-    let ytPendiente = null;
-    let ultimoEstadoYT = -1;
-    let ultimoTiempoYT = 0;
-
-    function bloquearEventosLocales(ms = 800) {
-      ignorarHasta = Date.now() + ms;
+    function joinRoom() {
+      const name = document.getElementById('userNameInput').value;
+      socket.emit('join_room', { userName: name });
     }
 
-    function estaIgnorando() {
-      return Date.now() < ignorarHasta;
+    function sendMedia(clearQueue) {
+      const input = document.getElementById('mediaInput').value;
+      if (!input.trim()) return;
+      socket.emit('add_media', { input: input, clearQueue: clearQueue });
+      document.getElementById('mediaInput').value = '';
     }
 
-    function sacarIdYouTube(url) {
-      const m = url.match(/(?:youtu\.be\/|v=|embed\/|shorts\/|live\/)([A-Za-z0-9_-]{11})/);
-      return m ? m[1] : null;
+    function sendChat() {
+      const text = document.getElementById('chatInput').value;
+      if (!text.trim()) return;
+      socket.emit('chat_message', { text: text });
+      document.getElementById('chatInput').value = '';
     }
 
-    function unirseSala() {
-      const sala = document.getElementById('nombreSala').value.trim() || 'general';
-      socket.emit('unirseA_sala', sala);
-    }
-
-    function cargarVideo() {
-      const url = document.getElementById('urlVideo').value.trim();
-      if (!url) return;
-      socket.emit('cargar', url);
-    }
-
-    function activarReproduccion() {
-      avisoAutoplay.style.display = 'none';
-      if (modo === 'mp4') video.play().catch(() => {});
-      else if (ytListo) ytPlayer.playVideo();
-    }
-
-    function onYouTubeIframeAPIReady() {
-      ytPlayer = new YT.Player('ytPlayer', {
-        width: '100%',
-        height: '100%',
-        playerVars: { playsinline: 1, rel: 0 },
-        events: {
-          onReady: () => {
-            ytListo = true;
-            if (ytPendiente) {
-              aplicarEstadoYouTube(ytPendiente);
-              ytPendiente = null;
-            }
-          },
-          onStateChange: alCambiarEstadoYT
-        }
-      });
-      setInterval(revisarSaltoYT, 1000);
-    }
-
-    function aplicarEstadoYouTube(data) {
-      bloquearEventosLocales(1500);
-      ytPlayer.loadVideoById({ videoId: data.id, startSeconds: data.tiempo || 0 });
-      if (data.pausado) {
-        setTimeout(() => ytPlayer.pauseVideo(), 500);
-      }
-    }
-
-    function alCambiarEstadoYT(e) {
-      if (estaIgnorando() || modo !== 'youtube') return;
-      const t = ytPlayer.getCurrentTime();
-      if (e.data === YT.PlayerState.PLAYING) {
-        socket.emit('play', t);
-      } else if (e.data === YT.PlayerState.PAUSED) {
-        socket.emit('pause', t);
-      }
-      ultimoEstadoYT = e.data;
-      ultimoTiempoYT = t;
-    }
-
-    function revisarSaltoYT() {
-      if (modo !== 'youtube' || !ytListo || estaIgnorando()) return;
-      const t = ytPlayer.getCurrentTime();
-      if (Math.abs(t - ultimoTiempoYT) > 2.5) {
-        socket.emit('seek', t);
-      }
-      ultimoTiempoYT = t;
-    }
-
-    socket.on('cargar', (data) => {
-      const url = data.url;
-      const tiempo = data.tiempo || 0;
-      const pausado = data.pausado || false;
-      if (!url) {
-        video.style.display = 'none';
-        ytContenedor.style.display = 'none';
-        return;
-      }
-
-      const id = sacarIdYouTube(url);
-      bloquearEventosLocales(1500);
-
-      if (id) {
-        modo = 'youtube';
-        video.pause();
-        video.style.display = 'none';
-        ytContenedor.style.display = 'block';
-        if (ytListo) {
-          aplicarEstadoYouTube({ id, tiempo, pausado });
+    socket.on('room_state', (state) => {
+      const container = document.getElementById('video-container');
+      if (state.currentVideo) {
+        if (state.currentVideo.type === 'youtube') {
+          container.innerHTML = `<iframe width="100%" height="100%" src="https://www.youtube.com/embed/${state.currentVideo.id}?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
         } else {
-          ytPendiente = { id, tiempo, pausado };
+          container.innerHTML = `<video width="100%" height="100%" controls autoplay src="${state.currentVideo.url}"></video>`;
         }
       } else {
-        modo = 'mp4';
-        if (ytListo) ytPlayer.stopVideo();
-        ytContenedor.style.display = 'none';
-        video.style.display = 'block';
-        video.src = url;
-        video.currentTime = tiempo;
-        if (!pausado) {
-          video.play().catch(() => { avisoAutoplay.style.display = 'block'; });
-        }
+        container.innerHTML = 'No hay video cargado.';
       }
+
+      const chatBox = document.getElementById('chat');
+      chatBox.innerHTML = state.messages.map(m => `<div class="msg ${m.isVip ? 'vip' : ''}"><b>${m.sender}:</b> ${m.text}</div>`).join('');
+      chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    video.addEventListener('play', () => {
-      if (!estaIgnorando() && modo === 'mp4') socket.emit('play', video.currentTime);
+    socket.on('chat_message', (msg) => {
+      const chatBox = document.getElementById('chat');
+      chatBox.innerHTML += `<div class="msg ${msg.isVip ? 'vip' : ''}"><b>${msg.sender}:</b> ${msg.text}</div>`;
+      chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    video.addEventListener('pause', () => {
-      if (!estaIgnorando() && modo === 'mp4') socket.emit('pause', video.currentTime);
+    socket.on('error_msg', (err) => {
+      alert(err);
     });
 
-    video.addEventListener('seeked', () => {
-      if (!estaIgnorando() && modo === 'mp4') socket.emit('seek', video.currentTime);
+    socket.on('kicked', (data) => {
+      alert(data.message);
+      window.location.reload();
     });
-
-    socket.on('play', (t) => {
-      bloquearEventosLocales(1200);
-      if (modo === 'youtube' && ytListo) {
-        if (Math.abs(ytPlayer.getCurrentTime() - t) > 1.5) ytPlayer.seekTo(t, true);
-        ytPlayer.playVideo();
-      } else {
-        if (Math.abs(video.currentTime - t) > 1.5) video.currentTime = t;
-        video.play().catch(() => { avisoAutoplay.style.display = 'block'; });
-      }
-    });
-
-    socket.on('pause', (t) => {
-      bloquearEventosLocales(1200);
-      if (modo === 'youtube' && ytListo) {
-        ytPlayer.seekTo(t, true);
-        ytPlayer.pauseVideo();
-      } else {
-        video.currentTime = t;
-        video.pause();
-      }
-    });
-
-    socket.on('seek', (t) => {
-      bloquearEventosLocales(1200);
-      if (modo === 'youtube' && ytListo) {
-        ytPlayer.seekTo(t, true);
-      } else {
-        video.currentTime = t;
-      }
-    });
-
-    function enviarMensaje() {
-      const input = document.getElementById('texto');
-      const nombre = document.getElementById('nombreUsuario').value.trim() || 'Anónimo';
-      if (!input.value.trim()) return;
-      socket.emit('mensaje', { nombre, texto: input.value.trim() });
-      input.value = '';
-    }
-
-    document.getElementById('texto').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') enviarMensaje();
-    });
-
-    socket.on('mensaje', (data) => {
-      const div = document.getElementById('mensajes');
-      const p = document.createElement('p');
-      const strong = document.createElement('strong');
-      strong.textContent = data.nombre + ': ';
-      p.appendChild(strong);
-      p.appendChild(document.createTextNode(data.texto));
-      div.appendChild(p);
-      div.scrollTop = div.scrollHeight;
-    });
-
-    // Unirse a la sala por defecto al cargar la página
-    window.onload = () => unirseSala();
   </script>
 </body>
 </html>
